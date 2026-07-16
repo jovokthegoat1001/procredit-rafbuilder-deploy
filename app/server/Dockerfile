@@ -1,5 +1,5 @@
 # Backend (Express API) — deployed to Railway, also used by docker-compose for local testing.
-# Build context is app/server/.
+# Railway builds this with Root Directory = app/server, so the build context is app/server/.
 FROM node:22-alpine
 
 WORKDIR /app

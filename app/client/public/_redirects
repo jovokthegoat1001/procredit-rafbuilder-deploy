@@ -1,0 +1,9 @@
+# Netlify redirects. This file is copied verbatim into the build output (dist/) and is
+# read regardless of the base directory — more reliable than netlify.toml when the
+# site's base is a subfolder (app/client). Rules are matched top-to-bottom.
+
+# Proxy API calls to the Railway backend (keeps the frontend calling relative /api).
+/api/*  https://raf-api-node-procredit-deploy.up.railway.app/api/:splat  200!
+
+# SPA fallback — every other path serves the app shell.
+/*      /index.html  200

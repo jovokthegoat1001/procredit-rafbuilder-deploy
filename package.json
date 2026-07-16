@@ -1,0 +1,11 @@
+{
+  "name": "raf-report-tool-root",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "install:all": "npm install --prefix app && npm run install:all --prefix app",
+    "dev": "npm run dev --prefix app",
+    "build": "npm run build --prefix app",
+    "start": "npm run start --prefix app"
+  }
+}

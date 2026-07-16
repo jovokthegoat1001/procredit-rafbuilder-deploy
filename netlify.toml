@@ -1,0 +1,27 @@
+# Netlify configuration for the RAF frontend (Vite/React static site).
+# Netlify builds from source (no Docker) and proxies /api/* to the Railway backend,
+# so the client keeps calling relative /api paths — no hardcoded backend URL in code
+# and no CORS to configure.
+
+[build]
+  base = "app/client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Proxy API calls to the Railway backend. REPLACE the host below with your Railway
+# public URL after deploying the backend (e.g. raf-api-production.up.railway.app).
+# status = 200 makes this a transparent proxy (rewrite), not a browser redirect.
+[[redirects]]
+  from = "/api/*"
+  to = "https://REPLACE-WITH-YOUR-RAILWAY-URL.up.railway.app/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback — every other route serves index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

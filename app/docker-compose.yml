@@ -1,0 +1,33 @@
+# Local testing of the full stack in containers — mirrors the production split
+# (static frontend + separate API), so you can validate before deploying the
+# backend to Railway and the frontend to Netlify.
+#
+#   Frontend (nginx)  ->  http://localhost:8080
+#   Backend  (express) -> http://localhost:8787
+#
+# The frontend proxies /api -> backend, exactly like netlify.toml does in prod.
+# The backend reads your Anthropic key from server/.env (copy server/.env.example).
+#
+#   cd app && docker compose up --build
+
+services:
+  server:
+    build:
+      context: ./server
+    env_file:
+      - ./server/.env
+    environment:
+      - PORT=8787
+      - NODE_ENV=production
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+    restart: unless-stopped

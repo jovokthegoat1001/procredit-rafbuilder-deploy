@@ -92,10 +92,25 @@ export default function App() {
         if (!files) return;
         files.forEach((f) => fd.append(d.type, f, f.name));
       });
-      const res = await fetch('/api/generate', { method: 'POST', body: fd });
-      const payload = await res.json();
-      if (!payload.ok) {
-        setGenerateError(payload.error || 'Generation failed.');
+      // In production the frontend (Netlify) calls the backend (Railway) directly via
+      // VITE_API_BASE — extraction runs longer than Netlify's proxy timeout, so we
+      // bypass the proxy. Locally VITE_API_BASE is unset, so this stays relative and
+      // is handled by the Vite/nginx dev proxy.
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const res = await fetch(`${API_BASE}/api/generate`, { method: 'POST', body: fd });
+      const raw = await res.text();
+      let payload;
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        setGenerateError(
+          `Server returned HTTP ${res.status} ${res.statusText}` +
+          (raw ? `: ${raw.slice(0, 300)}` : ' with an empty body (the request likely timed out or the backend crashed — check Railway logs).')
+        );
+        return;
+      }
+      if (!res.ok || !payload.ok) {
+        setGenerateError(payload.error || `Generation failed (HTTP ${res.status}).`);
         return;
       }
       const data = payload.data || {};

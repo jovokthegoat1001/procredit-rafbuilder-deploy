@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const th = { textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#fff', background: '#0c2f47', padding: '12px 15px' };
 const cardHead = { padding: '15px 20px', borderBottom: '1px solid #eef2f6', fontWeight: 700, fontSize: 12, letterSpacing: '.05em', textTransform: 'uppercase' };
 const card = { background: '#fff', border: '1px solid #e6ebf1', borderRadius: 14, boxShadow: '0 6px 22px rgba(15,31,51,.05)', overflow: 'hidden', marginBottom: 18 };
@@ -6,6 +8,32 @@ const fieldInput = { padding: '9px 11px', border: '1.5px solid #e6ebf1', borderR
 const cellInput = { width: '100%', padding: '6px 9px', border: '1.5px solid #e6ebf1', borderRadius: 7, font: 'inherit', fontSize: 12, outline: 'none', background: '#fff' };
 const badge = (b) => ({ display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 999, background: b.bg, color: b.fg });
 const TIERS = [1, 2, 3, 4, 5, 6];
+
+// Money input: "Php" prefix + thousands separators. Stores the raw numeric string
+// (digits + optional decimal) so parseMoney/getLimit are unaffected. Shows the raw
+// (ungrouped) value while focused to avoid the comma-regrouping cursor jump.
+function MoneyInput({ value, onChange, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  const raw = String(value ?? '').replace(/[^0-9.]/g, '');
+  let display = raw;
+  if (!focused && raw !== '') {
+    const [i, d] = raw.split('.');
+    display = Number(i || '0').toLocaleString('en-US') + (d !== undefined ? '.' + d : '');
+  }
+  return (
+    <div style={{ position: 'relative' }}>
+      <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#6b7a8d', fontSize: 13, pointerEvents: 'none' }}>Php</span>
+      <input
+        type="text" inputMode="decimal" placeholder={placeholder}
+        value={display}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
+        style={{ ...fieldInput, width: '100%', paddingLeft: 40 }}
+      />
+    </div>
+  );
+}
 
 export default function RafAssessment({ tierFlat, worstBadge, finalBadge, form, onField, summaryCats, approvalText, appetiteRows, hasAppetite, impliedLimits, prescribedText, termPrice, termTenor, finalMetrics }) {
   return (
@@ -44,11 +72,15 @@ export default function RafAssessment({ tierFlat, worstBadge, finalBadge, form, 
                         {r.options.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={r.value} onChange={(e) => r.onChange(e.target.value)} style={cellInput} />
+                      <select value={String(r.value ?? '')} onChange={(e) => r.onChange(e.target.value)} style={cellInput}>
+                        <option value="">— No data</option>
+                        {TIERS.map((t) => <option key={t} value={String(t)}>{`Tier ${t}`}</option>)}
+                        <option value="FAIL">FAIL</option><option value="N/A">N/A</option>
+                      </select>
                     )}
                   </td>
                   <td style={{ padding: '9px 15px' }}>
-                    {r.isGov ? (
+                    {r.hasOverride ? (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 118px', gap: 6 }}>
                         <input type="text" placeholder="Judgement note" value={r.note} onChange={(e) => r.onNote(e.target.value)} style={cellInput} />
                         <select value={r.override} onChange={(e) => r.onOverride(e.target.value)} style={cellInput}>
@@ -151,15 +183,15 @@ export default function RafAssessment({ tierFlat, worstBadge, finalBadge, form, 
           <div className="risk-inputs" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={fieldLabel}>Annual Revenue Credits</label>
-              <input type="text" placeholder="e.g. PHP 499,000,000" value={form.revCredits} onChange={(e) => onField('revCredits', e.target.value)} style={fieldInput} />
+              <MoneyInput value={form.revCredits} onChange={(v) => onField('revCredits', v)} placeholder="e.g. 499,000,000" />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={fieldLabel}>Total Borrowing / Wallet</label>
-              <input type="text" placeholder="e.g. PHP 120,000,000" value={form.totalDebt} onChange={(e) => onField('totalDebt', e.target.value)} style={fieldInput} />
+              <MoneyInput value={form.totalDebt} onChange={(v) => onField('totalDebt', v)} placeholder="e.g. 120,000,000" />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={fieldLabel}>Average Daily Balance</label>
-              <input type="text" placeholder="e.g. PHP 15,000,000" value={form.adb} onChange={(e) => onField('adb', e.target.value)} style={fieldInput} />
+              <MoneyInput value={form.adb} onChange={(v) => onField('adb', v)} placeholder="e.g. 15,000,000" />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={fieldLabel}>ADB / EMI Factor</label>

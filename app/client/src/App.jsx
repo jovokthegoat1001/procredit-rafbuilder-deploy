@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import * as raf from './lib/rafEngine';
-import { printRafReport, printTriReport } from './lib/exportWord';
+import { printRafReport, printTriReport } from './lib/exportPdf';
 import Landing from './components/Landing';
 import Sidebar from './components/Sidebar';
 import ObligorIdentity from './components/ObligorIdentity';
@@ -163,7 +163,7 @@ export default function App() {
     const isSelect = !!(row.type === 'select' || row.opts);
     const isDate = row.type === 'date';
     const options = isSelect ? (row.opts.includes(val) ? row.opts.slice() : [val].concat(row.opts)) : [];
-    return { key: row.key, label: row.label, screen: row.screen, value: val, isSelect, isDate, isText: !isSelect && !isDate, options, onChange: (v) => setRow(row.key, v), badge: raf.mandBadgeFor(row, val) };
+    return { key: row.key, label: row.label, screen: row.screen, value: val, isSelect, isDate, isText: !isSelect && !isDate, fmt: row.fmt || null, options, onChange: (v) => setRow(row.key, v), badge: raf.mandBadgeFor(row, val) };
   });
 
   const tierFlat = [];
@@ -171,12 +171,13 @@ export default function App() {
     tierFlat.push({ isHeader: true, cat: cat.cat });
     cat.rows.forEach((row) => {
       const val = rowValues[row.key] ?? row.actual;
-      const isSelect = !!row.opts;
+      const isSelect = !!row.opts;               // manual rows: pick from opts
+      const isTierSelect = !isSelect;            // computed rows: Tier 1-6 / FAIL / N/A dropdown
       const options = isSelect ? (row.opts.includes(val) ? row.opts.slice() : [val].concat(row.opts)) : [];
-      const isGov = cat.cat === 'Corporate Governance';
       tierFlat.push({
-        isRow: true, key: row.key, label: row.label, value: val, isSelect, isText: !isSelect, options,
-        onChange: (v) => setRow(row.key, v), isGov,
+        isRow: true, key: row.key, label: row.label, value: val, isSelect, isTierSelect, options,
+        onChange: (v) => setRow(row.key, v),
+        hasOverride: true,   // judgement note + tier override on every row now
         note: rowValues[row.key + '_note'] || '', onNote: (v) => setRow(row.key + '_note', v),
         override: rowValues[row.key + '_tier_override'] || 'computed', onOverride: (v) => setRow(row.key + '_tier_override', v),
         tier: raf.tbadge(raf.rowTier(row, cat.cat, rowValues)),

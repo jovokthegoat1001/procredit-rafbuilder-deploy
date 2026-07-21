@@ -87,7 +87,7 @@ export default function Landing({ onEnter, onSample }) {
           {[
             { n: '01', title: 'Drop the documents', desc: 'Attach the CBR, bank statements, GIS and KYF. The builder reads each one automatically.' },
             { n: '02', title: 'Auto-score the matrix', desc: 'Cash flow, financials, governance and integrity are weighted into a single composite risk score.' },
-            { n: '03', title: 'Review & sign off', desc: 'Read the recommendation and conditions, then export to PDF or Word for the committee.' },
+            { n: '03', title: 'Review & sign off', desc: 'Read the recommendation and conditions, then export to PDF for the committee.' },
           ].map((s) => (
             <div key={s.n} style={{ background: '#fff', border: '1px solid #e6ebf1', borderRadius: 18, boxShadow: '0 6px 22px rgba(15,31,51,.05)', padding: 28, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#2a75a8,#4ea246)' }} />

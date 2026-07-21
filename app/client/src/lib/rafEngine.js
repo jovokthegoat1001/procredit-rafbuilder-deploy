@@ -22,7 +22,7 @@ const identity = (v) => {
 
 export const MANDATORY_ROWS = [
   { key: 'reg_date', label: 'Date of Original Business Registration', screen: 'Before July 2023', actual: '1978-12-29', type: 'date' },
-  { key: 'min_rev', label: 'Minimum Annual Revenue Last 3 Years (Min. of Audited, In-House, Sales Br. Down)', screen: 'Php 100M', actual: 'Php 499m', type: 'text' },
+  { key: 'min_rev', label: 'Minimum Annual Revenue Last 3 Years (Min. of Audited, In-House, Sales Br. Down)', screen: 'Php 100M', actual: 'Php 499m', type: 'text', fmt: 'money' },
   { key: 'afs_itr', label: `Final ${Number(getPHDate().slice(0, 4)) - 1} AFS & ITR submitted`, screen: 'Yes', actual: 'Yes', type: 'select', opts: ['Yes', 'No'] },
   { key: 'gis', label: 'Up to Date GIS or DTI Business Name Registration', screen: 'Registration updated, shareholding fully disclosed', actual: 'Yes', type: 'select', opts: ['Yes', 'No'] },
   { key: 'ubo', label: 'Known Ultimate Beneficial Owner or Proprietor', screen: 'UBO declared and in direct contact with ProCredit', actual: 'Yes', type: 'select', opts: ['Yes', 'No'] },
@@ -32,7 +32,7 @@ export const MANDATORY_ROWS = [
   { key: 'tcc', label: 'TCC Regulatory Requirements', screen: 'No negative finds as of today', actual: 'Yes', type: 'select', opts: ['Yes', 'No', 'Pending'] },
   { key: 'dole', label: 'DOLE Regulatory Requirements', screen: 'No negative finds as of today', actual: 'Yes', type: 'select', opts: ['Yes', 'No', 'Pending'] },
   { key: 'bank_stmt', label: 'Acceptable Bank Statements (all operating accts. analyzed by Hobbiate)', screen: 'Yes', actual: 'Yes', type: 'select', opts: ['Yes', 'No'] },
-  { key: 'nbfc_exp', label: "NBFC Exposure (% of obligor's pre-money debt)", screen: '<= 65%', actual: '0.00%', type: 'text' },
+  { key: 'nbfc_exp', label: "NBFC Exposure (% of obligor's pre-money debt)", screen: '<= 65%', actual: '0.00%', type: 'text', fmt: 'percent' },
 ];
 
 export const TIERING_CATS = [
@@ -163,15 +163,22 @@ export function defaultForm() {
   };
 }
 
+// The `actual` fields carried sample/demo values from the original prototype, and the
+// `rowValues[key] ?? row.actual` reads could surface them as if entered (e.g. a Track
+// Record of "10 or more years" on a company nobody scored). A live assessment must show
+// untouched rows as "No data", so blank every sample value — the real value always comes
+// from extraction or user input via rowValues, never from these placeholders.
+MANDATORY_ROWS.forEach((r) => { r.actual = ''; });
+TIERING_CATS.forEach((c) => c.rows.forEach((r) => { r.actual = ''; }));
+
 export function defaultRowValues() {
   const rowValues = {};
   MANDATORY_ROWS.forEach((r) => { rowValues[r.key] = ''; });
   TIERING_CATS.forEach((cat) => cat.rows.forEach((r) => {
     rowValues[r.key] = '';
-    if (cat.cat === 'Corporate Governance') {
-      rowValues[r.key + '_tier_override'] = 'computed';
-      rowValues[r.key + '_note'] = '';
-    }
+    // every tiering row is overridable now (judgement note + tier override)
+    rowValues[r.key + '_tier_override'] = 'computed';
+    rowValues[r.key + '_note'] = '';
   }));
   rowValues.reg_date = defaultForm().regDate;
   rowValues.legal_status = defaultForm().legalStatus;
@@ -247,11 +254,10 @@ export function mandBadgeFor(row, val) {
 
 // ── tiering ──
 export function rowTier(row, catName, rowValues) {
+  // Judgement override applies to every tiering row (not just Corporate Governance).
+  const ov = rowValues[row.key + '_tier_override'] || 'computed';
+  if (ov && ov !== 'computed') return (ov === 'FAIL' || ov === 'N/A') ? ov : Number(ov);
   const val = rowValues[row.key] ?? row.actual;
-  if (catName === 'Corporate Governance') {
-    const ov = rowValues[row.key + '_tier_override'] || 'computed';
-    if (ov && ov !== 'computed') return (ov === 'FAIL' || ov === 'N/A') ? ov : Number(ov);
-  }
   if (val === undefined || val === '' || val === null) return 'NODATA';
   return row.tierFn(val);
 }

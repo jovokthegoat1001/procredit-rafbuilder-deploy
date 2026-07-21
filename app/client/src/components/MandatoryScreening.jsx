@@ -36,6 +36,26 @@ export default function MandatoryScreening({ rows, mandBadge }) {
                       </select>
                     ) : r.isDate ? (
                       <input type="date" value={r.value} onChange={(e) => r.onChange(e.target.value)} style={selectStyle} />
+                    ) : r.fmt === 'percent' ? (
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="text" inputMode="decimal"
+                          value={String(r.value ?? '').replace(/%/g, '').trim()}
+                          onChange={(e) => { const c = e.target.value.replace(/[^0-9.]/g, ''); r.onChange(c === '' ? '' : c + '%'); }}
+                          style={{ ...selectStyle, paddingRight: 26 }}
+                        />
+                        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7a8d', fontSize: 12, pointerEvents: 'none' }}>%</span>
+                      </div>
+                    ) : r.fmt === 'money' ? (
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7a8d', fontSize: 12, pointerEvents: 'none' }}>Php</span>
+                        <input
+                          type="text" inputMode="decimal"
+                          value={String(r.value ?? '').replace(/^\s*php\s*/i, '')}
+                          onChange={(e) => { const c = e.target.value.replace(/[^0-9.,mbnk ]/gi, ''); r.onChange(c.trim() === '' ? '' : 'Php ' + c.replace(/\s+/g, ' ').trimStart()); }}
+                          style={{ ...selectStyle, paddingLeft: 36 }}
+                        />
+                      </div>
                     ) : (
                       <input type="text" value={r.value} onChange={(e) => r.onChange(e.target.value)} style={selectStyle} />
                     )}

@@ -106,7 +106,7 @@ const FS_FIELDS = {
   audit_status_per_year: 'object mapping each FY to "AUDITED" or "IN-HOUSE"',
   audited: {
     _comment: 'the AUDITED figures. Omit / null any year not audited.',
-    income_statement_per_year: '{ "FY-YYYY": { revenue, cogs, gross_profit, ebit, interest_expense, net_income } } — plain numbers per year',
+    income_statement_per_year: '{ "FY-YYYY": { revenue, cogs, gross_profit, ebit, interest_expense, net_income } } — plain numbers per year. Put the TOP-LINE sales figure in "revenue" whatever the statement labels it (Revenue / Sales / Net Sales / Gross Sales / Turnover / Sales Revenue).',
     balance_sheet_per_year: '{ "FY-YYYY": { cash_and_equivalents, trade_receivables, other_current_assets, total_current_assets, inventory, property_and_equipment_net, total_noncurrent_assets, total_assets, trade_payables, other_current_liabilities, loans_payable_current, total_current_liabilities, due_to_affiliates, loans_payable_noncurrent, total_noncurrent_liabilities, total_liabilities, paid_up_capital, retained_earnings, total_equity, balance_check } }',
   },
   in_house: {
@@ -196,7 +196,7 @@ const SCHEMA_KEY_LABEL = {
 
 const DOC_INTRO = {
   gis: 'This is a SEC General Information Sheet (GIS) / DTI registration. Extract corporate registration, ownership, and beneficial-owner facts.',
-  fs: 'This is a Financial Spread — it may contain AUDITED and IN-HOUSE figures for the same fiscal years. Extract both series so the audited-vs-in-house gaps can be computed downstream. The income-statement lines (revenue, ebit, interest_expense, net_income) are REQUIRED for the revenue/margin/ICR criteria — extract them wherever a profit-and-loss page is present.',
+  fs: 'This is a Financial Spread — it may contain AUDITED and IN-HOUSE figures for the same fiscal years. Extract both series so the audited-vs-in-house gaps can be computed downstream. The income-statement lines (revenue, ebit, interest_expense, net_income) are REQUIRED for the revenue/margin/ICR/sales-gap criteria — extract them wherever a profit-and-loss / income statement / sales line is present. IMPORTANT: the top-line sales figure may be labeled "Revenue", "Sales", "Net Sales", "Gross Sales", "Turnover", or "Sales Revenue" — always capture it under "revenue" regardless of the exact label, for both the audited and in-house series.',
   ltr: 'This is a Large Transaction Report / borrower report (bank-statement analytics + borrowing estimates). Extract the monthly bank-stat table, cheque activity, the debt-estimates summary (per as-of date), and the disclosed-borrowing detail.',
   cbr: 'This is a Credit Bureau Report (CIC / NFIS / Namescan / CRIF). Extract NFIS/Namescan hits, court cases, every delinquency event with its month and DPD cycle count, and the facilities list.',
 };

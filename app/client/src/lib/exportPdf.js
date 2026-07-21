@@ -96,29 +96,41 @@ function buildTriBodyHtml(form, triItems, logoDataUrl, opts) {
   const t = raf.computeTri(triItems);
   const fmtNum = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('en-US'));
 
+  // Landscape-filling styles for this sheet — the shared 6.5pt table left most of the
+  // A4-landscape page blank, so this sheet uses bigger type and taller rows.
+  const BAR = `background-color:${NAVY};color:#fff;font-weight:bold;font-size:15pt;line-height:1.2;padding:7pt;font-family:Calibri,sans-serif;text-align:center;`;
+  const THt = `background-color:${BLUE};color:#fff;padding:9pt 4pt;font-weight:bold;border:1px solid #9db7c9;font-size:9pt;line-height:1.15;text-align:left;`;
+  const TDt = `padding:16pt 4pt;border:1px solid #ccd3da;vertical-align:middle;font-size:11pt;line-height:1.2;color:${INK};`;
+  const tdt = (content, extra) => `<td style="${TDt}${extra || ''}">${content}</td>`;
+
   let b = '';
-  if (opts.includeHeader) {
-    // titleText omitted — the table's own thead already repeats the "FINANCIAL DATA
-    // TRIANGULATOR" bar on every printed page, so a separate title here would be redundant.
-    b += headerBlock(logoDataUrl, form, null, null);
-    b += `<div style="font-size:8.5pt;font-style:italic;color:${MUTE};margin:0 0 4pt;">Every source compared to a chosen anchor per line item &mdash; coverage-adjusted, worst-outlier scoring. Values in Peso '000.</div>`;
-  }
+  // Identical compact header for BOTH the standalone export and the copy embedded in
+  // the RAF report, so the two sheets look the same: logo top-left, obligor info right.
+  // (`opts.includeHeader` no longer changes the header — kept for call-site compatibility.)
+  b += `<table style="${TBL}margin-bottom:6pt;"><tr>
+    <td style="border:none;padding:0 14pt 0 0;vertical-align:middle;width:1%;white-space:nowrap;">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" alt="ProCredit Financing Corp" style="height:32px;width:auto;display:block;" />` : `<div style="font-size:13pt;font-weight:bold;color:${NAVY};">ProCredit <span style="font-weight:normal;color:${MUTE};">Financing Corp</span></div>`}
+    </td>
+    <td style="border:none;padding:0;vertical-align:middle;font-size:12pt;color:${INK};">
+      ${form.obligorName ? `<b>${esc(form.obligorName)}</b><span style="color:${MUTE};">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>` : ''}<span style="color:${MUTE};">${esc(form.date || '')}</span>
+    </td>
+  </tr></table>`;
 
   const triColCount = raf.TRI_SOURCES.length + 11;
   b += `<table style="${TBL}"><thead>
-    <tr><th colspan="${triColCount}" style="${SECTION_BAR}">FINANCIAL DATA TRIANGULATOR</th></tr>
+    <tr><th colspan="${triColCount}" style="${BAR}">FINANCIAL DATA TRIANGULATOR</th></tr>
     <tr>
-      <th style="${TH}">Line Item</th>
-      <th style="${TH}text-align:center;">Appl.</th>
-      ${raf.TRI_SOURCES.map((s) => `<th style="${TH}text-align:right;">${esc(s.label)}</th>`).join('')}
-      <th style="${TH}">Anchor Source</th>
-      <th style="${TH}text-align:right;">Anchor Value</th>
-      <th style="${TH}text-align:center;">Sources</th>
-      <th style="${TH}text-align:center;">Coverage</th>
-      <th style="${TH}text-align:right;">Max Dev %</th>
-      <th style="${TH}text-align:center;">Raw</th>
-      <th style="${TH}text-align:center;">Flag</th>
-      <th style="${TH}text-align:center;">Adjusted</th>
+      <th style="${THt}">Line Item</th>
+      <th style="${THt}text-align:center;">Appl.</th>
+      ${raf.TRI_SOURCES.map((s) => `<th style="${THt}text-align:right;">${esc(s.label)}</th>`).join('')}
+      <th style="${THt}">Anchor Source</th>
+      <th style="${THt}text-align:right;">Anchor Value</th>
+      <th style="${THt}text-align:center;">Sources</th>
+      <th style="${THt}text-align:center;">Coverage</th>
+      <th style="${THt}text-align:right;">Max Dev %</th>
+      <th style="${THt}text-align:center;">Raw</th>
+      <th style="${THt}text-align:center;">Flag</th>
+      <th style="${THt}text-align:center;">Adjusted</th>
     </tr>
   </thead><tbody>`;
   t.rows.forEach((r) => {
@@ -126,24 +138,25 @@ function buildTriBodyHtml(form, triItems, logoDataUrl, opts) {
     const cells = raf.TRI_SOURCES.map((s) => {
       const v = r.item.vals[s.key];
       const isAnchor = s.key === r.item.anchor;
-      return td(esc(v != null && v !== '' ? v : '—'), 'text-align:right;' + (isAnchor ? 'background-color:#eaf6ea;' : ''));
+      return tdt(esc(v != null && v !== '' ? v : '—'), 'text-align:right;' + (isAnchor ? 'background-color:#eaf6ea;' : ''));
     }).join('');
-    b += `<tr>${td(esc(r.item.label))}${td(esc(r.item.applicable), 'text-align:center;')}${cells}` +
-      `${td(esc(anchorSrc ? anchorSrc.label : r.item.anchor))}${td(fmtNum(r.anchorNum), 'text-align:right;')}` +
-      `${td(`${r.count} / ${raf.TRI_SOURCES.length}`, 'text-align:center;')}${td(Math.round(r.coverage * 100) + '%', 'text-align:center;')}` +
-      `${td(r.maxDev === null ? 'N/A' : (r.maxDev * 100).toFixed(1) + '%', 'text-align:right;')}${td(r.raw === null ? 'N/A' : String(r.raw), 'text-align:center;')}` +
-      `${td(pill(r.covLow ? 'Low' : 'OK', r.covLow ? '#b06f1a' : GREEN), 'text-align:center;')}${td(pill(String(r.adjusted), adjustedColor(r.adjusted)), 'text-align:center;')}` +
+    b += `<tr>${tdt(esc(r.item.label))}${tdt(esc(r.item.applicable), 'text-align:center;')}${cells}` +
+      `${tdt(esc(anchorSrc ? anchorSrc.label : r.item.anchor))}${tdt(fmtNum(r.anchorNum), 'text-align:right;')}` +
+      `${tdt(`${r.count} / ${raf.TRI_SOURCES.length}`, 'text-align:center;')}${tdt(Math.round(r.coverage * 100) + '%', 'text-align:center;')}` +
+      `${tdt(r.maxDev === null ? 'N/A' : (r.maxDev * 100).toFixed(1) + '%', 'text-align:right;')}${tdt(r.raw === null ? 'N/A' : String(r.raw), 'text-align:center;')}` +
+      `${tdt(pill(r.covLow ? 'Low' : 'OK', r.covLow ? '#b06f1a' : GREEN), 'text-align:center;')}${tdt(pill(String(r.adjusted), adjustedColor(r.adjusted)), 'text-align:center;')}` +
       `</tr>`;
   });
   b += `</tbody></table>`;
-  b += `<div style="font-size:8pt;font-style:italic;color:${MUTE};margin:-3pt 0 4pt;">Anchor cell is tinted green. Coverage under 50% (fewer than 4 of 8 sources) caps a line item at 3. Score uses the worst outlier vs. the anchor, not an average.</div>`;
+  b += `<div style="font-size:10pt;font-style:italic;color:${MUTE};margin:2pt 0 6pt;">Anchor cell is tinted green. Coverage under 50% (fewer than 4 of 8 sources) caps a line item at 3. Score uses the worst outlier vs. the anchor, not an average.</div>`;
 
   const bandMap = { 5: 'Verified consistent', 4: 'Largely consistent', 3: 'Moderate variance', 2: 'High variance', 1: 'Severe variance' };
+  const sumTD = 'padding:20pt 6pt;border:1px solid #ccd3da;vertical-align:middle;text-align:center;';
   b += `<table style="${TBL}"><tr>
-      <td style="${TD}text-align:center;"><div style="font-size:6.5pt;color:${MUTE};margin-bottom:1pt;">Final Score</div><b style="font-size:9pt;">${t.final === null ? '—' : t.final}</b><div style="font-size:8pt;color:${MUTE};">out of 5</div></td>
-      <td style="${TD}text-align:center;"><div style="font-size:6.5pt;color:${MUTE};margin-bottom:1pt;">Average (before rounding)</div><b style="font-size:9pt;">${t.avg === null ? '—' : t.avg.toFixed(1)}</b></td>
-      <td style="${TD}text-align:center;"><div style="font-size:6.5pt;color:${MUTE};margin-bottom:1pt;">Band</div><b>${t.final === null ? 'Awaiting data' : (bandMap[t.final] || '')}</b></td>
-      <td style="${TD}text-align:center;"><div style="font-size:6.5pt;color:${MUTE};margin-bottom:1pt;">Scored / Excluded / No comparator</div><b>${t.scoredCount} / ${t.excludedCount} / ${t.naCount}</b></td>
+      <td style="${sumTD}"><div style="font-size:10pt;color:${MUTE};margin-bottom:3pt;">Final Score</div><b style="font-size:20pt;color:${NAVY};">${t.final === null ? '—' : t.final}</b><div style="font-size:10pt;color:${MUTE};">out of 5</div></td>
+      <td style="${sumTD}"><div style="font-size:10pt;color:${MUTE};margin-bottom:3pt;">Average (before rounding)</div><b style="font-size:16pt;">${t.avg === null ? '—' : t.avg.toFixed(1)}</b></td>
+      <td style="${sumTD}"><div style="font-size:10pt;color:${MUTE};margin-bottom:3pt;">Band</div><b style="font-size:13pt;">${t.final === null ? 'Awaiting data' : (bandMap[t.final] || '')}</b></td>
+      <td style="${sumTD}"><div style="font-size:10pt;color:${MUTE};margin-bottom:3pt;">Scored / Excluded / No comparator</div><b style="font-size:13pt;">${t.scoredCount} / ${t.excludedCount} / ${t.naCount}</b></td>
     </tr></table>`;
 
   // Always rendered on its own A4-landscape page (named "tri"), whether printed standalone
@@ -192,7 +205,10 @@ function buildRafBodyHtml(form, rowValues, triItems, logoDataUrl) {
   </thead><tbody>`;
   raf.TIERING_CATS.forEach((cat) => {
     const label = cat.note ? `${esc(cat.cat)} &mdash; <span style="font-weight:normal;font-style:italic;">${esc(cat.note)}</span>` : esc(cat.cat);
-    b += `<tr><td colspan="9" style="${CAT_ROW}">${label}</td></tr>`;
+    // "Debt Sustainability" was stranding its header at the bottom of a page, split from
+    // its rows — start that category on a fresh page.
+    const brk = cat.cat === 'Debt Sustainability' ? 'page-break-before:always;break-before:page;' : '';
+    b += `<tr style="${brk}"><td colspan="9" style="${CAT_ROW}">${label}</td></tr>`;
     cat.rows.forEach((row) => {
       const val = rowValues[row.key] ?? row.actual;
       const t = raf.rowTier(row, cat.cat, rowValues);
@@ -296,7 +312,7 @@ function buildRafBodyHtml(form, rowValues, triItems, logoDataUrl) {
 
   // ── financial data triangulator (own page, after the RAF sheet and its sign-off) ──
   if (triItems && triItems.length) {
-    b += buildTriBodyHtml(form, triItems, null, { includeHeader: false, pageBreakBefore: true });
+    b += buildTriBodyHtml(form, triItems, logoDataUrl, { includeHeader: false, pageBreakBefore: true });
   }
 
   return b;
@@ -324,14 +340,26 @@ function printHtml(bodyHtml, docTitle) {
   iframe.style.border = '0';
   document.body.appendChild(iframe);
 
-  const doc = iframe.contentWindow.document;
+  const win = iframe.contentWindow;
+  const doc = win.document;
   doc.open();
   doc.write(html);
   doc.close();
 
-  iframe.contentWindow.focus();
-  iframe.contentWindow.print();
-  setTimeout(() => document.body.removeChild(iframe), 1000);
+  // Wait for images to finish decoding before printing. The header logo is a large
+  // data-URI PNG; calling print() before it paints drops it from the output (the
+  // rest of the page is synchronous HTML and renders fine). A timeout guards against
+  // an image that never loads so the dialog always opens.
+  const imgs = Array.from(doc.images || []);
+  const waits = imgs.map((img) => (img.complete
+    ? Promise.resolve()
+    : new Promise((resolve) => { img.addEventListener('load', resolve); img.addEventListener('error', resolve); })));
+
+  Promise.race([Promise.all(waits), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => {
+    win.focus();
+    win.print();
+    setTimeout(() => { try { document.body.removeChild(iframe); } catch { /* already removed */ } }, 1000);
+  });
 }
 
 export async function printRafReport({ form, rowValues, triItems }) {

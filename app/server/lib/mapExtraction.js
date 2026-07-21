@@ -138,6 +138,15 @@ export function mapExtraction(envelopes) {
     // figure to absolute pesos so cross-document gaps (FS vs LTR) are comparable.
     const fsUnit = str(fs.currency_unit);
     const m$ = (x) => money(x, fsUnit);
+    // The top-line figure is labeled Revenue / Sales / Net Sales / Gross Sales / Turnover
+    // depending on the statement — accept any of them as the sales/revenue value.
+    const salesRaw = (o) => {
+      if (!o || typeof o !== 'object') return undefined;
+      for (const k of ['revenue', 'sales', 'net_sales', 'gross_sales', 'turnover', 'total_revenue', 'total_sales']) {
+        if (o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k];
+      }
+      return undefined;
+    };
     const aud = fs.audited || {};
     const ih = fs.in_house || {};
     const audIS = aud.income_statement_per_year || {};
@@ -147,15 +156,15 @@ export function mapExtraction(envelopes) {
 
     // [{year, rev}] per source (revenue scaled to absolute pesos), keeping the FY label
     const revPairs = (isObj) => yearsOf(isObj)
-      .map((y) => ({ year: fyYear(y), rev: m$(isObj[y]?.revenue) }))
+      .map((y) => ({ year: fyYear(y), rev: m$(salesRaw(isObj[y])) }))
       .filter((p) => p.rev !== null);
     const audRev = revPairs(audIS);
     const ihRev = revPairs(ihIS);
     const audRecent = recent(audIS) || {};
     const ihRecent = recent(ihIS) || {};
 
-    const audSales = m$(audRecent.revenue);
-    const ihSales = m$(ihRecent.revenue);
+    const audSales = m$(salesRaw(audRecent));
+    const ihSales = m$(salesRaw(ihRecent));
     if (audSales !== null) out.fs_audited_sales = audSales;
     if (ihSales !== null) out.fs_inhouse_sales = ihSales;
 
@@ -179,7 +188,7 @@ export function mapExtraction(envelopes) {
     // Min net-income margin over the years — try audited, fall back to in-house when
     // audited yields no computable margin. (Margin is a ratio, so unit-independent.)
     const marginsOf = (isObj) => yearsOf(isObj).map((y) => {
-      const rev = num(isObj[y]?.revenue), ni = num(isObj[y]?.net_income);
+      const rev = num(salesRaw(isObj[y])), ni = num(isObj[y]?.net_income);
       return rev && rev !== 0 && ni !== null ? (ni / rev) * 100 : null;
     }).filter((x) => x !== null);
     const margins = marginsOf(audIS).length ? marginsOf(audIS) : marginsOf(ihIS);
@@ -210,9 +219,9 @@ export function mapExtraction(envelopes) {
       out.fin_ccc_days = dio + dso - dpo;
     } else {
       const bs = recent(ih.balance_sheet_per_year) || recent(aud.balance_sheet_per_year) || {};
-      const isRec = ihRecent.revenue !== undefined ? ihRecent : audRecent;
+      const isRec = salesRaw(ihRecent) !== undefined ? ihRecent : audRecent;
       const inv = num(bs.inventory), rec = num(bs.trade_receivables), pay = num(bs.trade_payables);
-      const cogs = num(isRec.cogs), rev = num(isRec.revenue);
+      const cogs = num(isRec.cogs), rev = num(salesRaw(isRec));
       if (inv !== null && rec !== null && pay !== null && cogs && rev) {
         out.fin_ccc_days = (inv / cogs) * 365 + (rec / rev) * 365 - (pay / cogs) * 365;
       }
@@ -311,10 +320,21 @@ export function mapExtraction(envelopes) {
     const reportDate = parseDate(cbr.report_date) || parseDate(envelopes.cbr?.document_date);
     if (cbr.nfis) out.nfis = bool(cbr.nfis.hit) ? 'No' : 'Yes';
     const nsHit = cbr.namescan ? bool(cbr.namescan.hit) : false;
-    const courtCases = Array.isArray(cbr.crif_court_cases) ? cbr.crif_court_cases.length : 0;
-    out.bg_screen = nsHit || courtCases > 0 ? 'No' : 'Yes';
+    // The screen is "no material negative findings over the last 3 years", so only court
+    // cases dated within the last 3 years fail it. Older cases (e.g. an 8-year-old case
+    // against a related entity) — or cases we cannot date — are surfaced as warnings for
+    // the officer, but do not auto-fail the screen.
+    const rIdxBg = monthIndex(reportDate);
+    const allCases = (Array.isArray(cbr.crif_court_cases) ? cbr.crif_court_cases : []).filter((c) => c && typeof c === 'object');
+    const recentCases = allCases.filter((c) => {
+      const cIdx = monthIndex(parseDate(c.date));
+      return cIdx !== null && rIdxBg !== null && (rIdxBg - cIdx) < 36;
+    });
+    const olderOrUndated = allCases.length - recentCases.length;
+    out.bg_screen = (nsHit || recentCases.length > 0) ? 'No' : 'Yes';
     if (nsHit) warnings.push('[CBR] Namescan hit — review before clearing Background Screening.');
-    if (courtCases > 0) warnings.push(`[CBR] ${courtCases} court case(s) found in CRIF — review Background Screening.`);
+    if (recentCases.length > 0) warnings.push(`[CBR] ${recentCases.length} court case(s) within the last 3 years — Background Screening fails; review.`);
+    if (olderOrUndated > 0) warnings.push(`[CBR] ${olderOrUndated} court case(s) older than 3 years (or undated) found in CRIF — not counted against Background Screening; review if relevant.`);
 
     const dels = (Array.isArray(cbr.cic_delinquencies) ? cbr.cic_delinquencies : [])
       .filter((d) => d && typeof d === 'object')
